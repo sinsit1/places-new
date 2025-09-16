@@ -14,6 +14,7 @@ import AdminPlaces from './pages/AdminPlaces.jsx'
 import NotFound from './pages/NotFound.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
+import PlacesMap from './pages/PlacesMap.jsx'
 
 function Protected({ children }){
   const { user, loading } = useAuth();
@@ -33,7 +34,8 @@ createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <Routes>
           <Route element={<App />}>
-            <Route path="/" element={<PlacesList />} />
+            <Route path="/" element={<PlacesMap />} />
+            <Route path="/places" element={<PlacesList />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/places/:id" element={<Protected><PlaceDetail /></Protected>} />

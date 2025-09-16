@@ -34,7 +34,7 @@ export default function App() {
               z-50
             `}
           >
-            <Link to="/" onClick={() => setMenuOpen(false)} className="btn btn-outline w-full md:w-auto">Lugares</Link>
+            <Link to="/places" onClick={() => setMenuOpen(false)} className="btn btn-outline w-full md:w-auto">Lugares</Link>
             {user && <Link to="/new" onClick={() => setMenuOpen(false)} className="btn btn-outline w-full md:w-auto">Proponer</Link>}
             {user && <Link to="/me" onClick={() => setMenuOpen(false)} className="btn btn-outline w-full md:w-auto">Mi perfil</Link>}
             {user?.role === 'admin' && (
