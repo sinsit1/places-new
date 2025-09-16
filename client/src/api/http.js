@@ -6,14 +6,21 @@ export async function http(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers
+    ...(options.headers || {})
   };
 
-  const res = await fetch(`${API}${path}`, {
+  const opts = {
     credentials: 'include',
     ...options,
     headers
-  });
+  };
+
+  // 🔹 Si el body es un objeto, lo convertimos en JSON
+  if (opts.body && typeof opts.body !== 'string') {
+    opts.body = JSON.stringify(opts.body);
+  }
+
+  const res = await fetch(`${API}${path}`, opts);
 
   if (!res.ok) {
     let err;
@@ -25,7 +32,7 @@ export async function http(path, options = {}) {
     throw err;
   }
 
-  // si la respuesta es 204 (sin contenido)
+  // 🔹 Si la respuesta es 204 (sin contenido), devolvemos null
   if (res.status === 204) return null;
 
   return res.json();
