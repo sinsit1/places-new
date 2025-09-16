@@ -1,115 +1,217 @@
-import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { http } from '../api/http.js'
-import { useAuth } from '../context/AuthContext.jsx'
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { http } from "../api/http.js";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function PlaceDetail() {
-  const { id } = useParams()
-  const { user } = useAuth()
-  const [place, setPlace] = useState(null)
-  const [rating, setRating] = useState('')
-  const [comment, setComment] = useState('')
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [place, setPlace] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => { load() }, [id])
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState("");
+
+  useEffect(() => {
+    load();
+  }, []);
 
   async function load() {
-    const r = await http(`/places/${id}`)
-    setPlace(r.place)
+    const r = await http(`/places/${id}`);
+    setPlace(r.place);
+
+    try {
+      const favs = await http("/users/me/favorites");
+      setIsFavorite(favs.data.some((f) => f._id === id));
+    } catch (err) {
+      console.error("Error cargando favoritos", err);
+    }
+  }
+
+  async function toggleFavorite() {
+    try {
+      if (isFavorite) {
+        await http(`/favorites/${id}`, { method: "DELETE" });
+        setIsFavorite(false);
+      } else {
+        await http(`/favorites/${id}`, { method: "POST" });
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error("Error al cambiar favorito", err);
+    }
   }
 
   async function submitReview(e) {
-    e.preventDefault()
-    await http(`/reviews`, {
-      method: 'POST',
-      body: JSON.stringify({
-        rating: Number(rating),
-        comment,
-        place: id   // 🔹 Importante: el ID del lugar
-      })
-    })
-    setRating('')
-    setComment('')
-    await load() // 🔹 refrescar lugar para traer nuevas reviews
+    e.preventDefault();
+    try {
+      await http(`/places/${id}/reviews`, {
+        method: "POST",
+        body: JSON.stringify({
+          rating: newRating,
+          comment: newComment,
+        }),
+      });
+      setShowModal(false);
+      setNewRating(5);
+      setNewComment("");
+      await load(); // recarga opiniones
+    } catch (err) {
+      console.error("Error al enviar opinión", err);
+    }
   }
 
-  if (!place) return <p>Cargando...</p>
+  if (!place) return <p>Cargando...</p>;
 
-  const hasReviewed = user && place.reviews?.some(r => String(r.author?._id) === String(user.id))
+  // ✅ comprobamos si el usuario ya ha opinado
+  const alreadyReviewed =
+    user &&
+    place.reviews?.some(
+      (r) => r.user?._id === user.id || r.user?._id === user._id
+    );
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Info del lugar */}
-      <div className="card p-6">
-        <h2 className="text-2xl font-bold mb-2">{place.title}</h2>
-        <p className="mb-2">{place.description}</p>
-        <span className="badge">Ubicación</span> {place.locationName || ''}
-        <div className="mt-3 text-sm">
-          ⭐ {Number(place.avgRating || 0).toFixed(1)} 
-          <span className="text-neutral-500"> ({place.reviewsCount})</span>
-        </div>
-      </div>
+    <div className="grid lg:grid-cols-3 gap-6">
+      {/* Columna izquierda */}
+      <div className="lg:col-span-2 space-y-6">
+        {/* Cabecera */}
+        <div className="card p-6">
+          <h1 className="text-2xl font-bold">{place.title}</h1>
+          <p className="text-neutral-600 mb-3">{place.description}</p>
 
-      {/* Opiniones y formulario en dos columnas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex items-center gap-2 text-yellow-500 font-semibold">
+            ⭐ {Number(place.avgRating || 0).toFixed(1)}
+            <span className="text-neutral-500">
+              ({place.reviewsCount} opiniones)
+            </span>
+          </div>
+        </div>
+
         {/* Opiniones */}
-        <div className="card p-6 md:col-span-2">
-          <h3 className="text-lg font-semibold mb-4">Opiniones</h3>
+        <div className="card p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Opiniones</h2>
+            {!alreadyReviewed ? (
+              <button
+                className="btn btn-primary text-sm"
+                onClick={() => setShowModal(true)}
+              >
+                ➕ Añadir opinión
+              </button>
+            ) : (
+              <span className="badge bg-green-100 text-green-700">
+                ✅ Ya has opinado sobre este lugar
+              </span>
+            )}
+          </div>
+
           {place.reviews?.length === 0 && (
-            <p className="text-neutral-500">No hay opiniones aún</p>
+            <p className="text-neutral-500">Aún no hay opiniones.</p>
           )}
+
           <div className="space-y-4">
-            {place.reviews?.map(r => (
+            {place.reviews?.map((r) => (
               <div key={r._id} className="border-b pb-3">
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold">{r.author?.name || 'Anónimo'}</span>
-                  <span className="text-sm text-neutral-500">
+                  <div className="font-semibold">{r.user?.name}</div>
+                  <div className="text-sm text-neutral-500">
                     {new Date(r.createdAt).toLocaleDateString()}
-                  </span>
+                  </div>
                 </div>
-                <div className="text-yellow-600">⭐ {r.rating}</div>
-                <p className="mt-1">{r.comment}</p>
+                <div className="text-yellow-500">⭐ {r.rating}</div>
+                <p className="text-neutral-700">{r.comment}</p>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Formulario */}
-        <div>
-          {!hasReviewed && user && (
-            <form onSubmit={submitReview} className="card p-6 space-y-4">
-              <h3 className="text-lg font-semibold">Añadir opinión</h3>
+      {/* Columna derecha */}
+      <div className="space-y-6">
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-3">Información</h3>
+          <p>
+            <strong>Dirección:</strong> {place.address || "No disponible"}
+          </p>
+          {place.location?.coordinates && (
+            <div className="my-3">
+              <MapContainer
+                center={[
+                  place.location.coordinates[1],
+                  place.location.coordinates[0],
+                ]}
+                zoom={14}
+                style={{ height: "200px", width: "100%" }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <Marker
+                  position={[
+                    place.location.coordinates[1],
+                    place.location.coordinates[0],
+                  ]}
+                >
+                  <Popup>{place.title}</Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+          )}
+          {/* Botón favoritos */}
+          <button
+            className={`btn w-full ${
+              isFavorite ? "btn-secondary" : "btn-primary"
+            }`}
+            onClick={toggleFavorite}
+          >
+            {isFavorite ? "⭐ Quitar de favoritos" : "⭐ Añadir a favoritos"}
+          </button>
+        </div>
+      </div>
+
+      {/* Modal opinión */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Añadir opinión</h2>
+            <form onSubmit={submitReview} className="space-y-4">
               <div>
-                <label className="label">Nota (1-5)</label>
+                <label className="label">Puntuación</label>
                 <input
                   type="number"
                   min="1"
                   max="5"
+                  value={newRating}
+                  onChange={(e) => setNewRating(Number(e.target.value))}
                   className="input"
-                  value={rating}
-                  onChange={e => setRating(e.target.value)}
-                  required
                 />
               </div>
               <div>
                 <label className="label">Comentario</label>
-                <input
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
                   className="input"
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  required
+                  rows="3"
                 />
               </div>
-              <button className="btn btn-primary">Enviar</button>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Guardar
+                </button>
+              </div>
             </form>
-          )}
-
-          {hasReviewed && (
-            <div className="card p-4 text-center text-neutral-600">
-              Ya has opinado sobre este lugar ✅
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
-  )
+  );
 }

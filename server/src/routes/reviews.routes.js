@@ -16,7 +16,7 @@ async function recomputePlaceStats(placeId) {
 }
 
 // 📌 Crear review (acepta ambas rutas)
-router.post(['/places/:id/reviews', '/reviews'], requireAuth, async (req, res, next) => {
+router.post(['/places/:id/reviews', '/reviews'], requireAuth, async (req, res) => {
   try {
     const { rating, comment, place } = req.body;
     const placeId = req.params.id || place; // 🔹 Soporta /places/:id/reviews y /reviews
@@ -39,10 +39,18 @@ router.post(['/places/:id/reviews', '/reviews'], requireAuth, async (req, res, n
       review: r,
       place: { avgRating: p.avgRating, reviewsCount: p.reviewsCount }
     });
+
   } catch (err) {
-    next(err);
+    if (err.code === 11000) {
+      // 🔹 Error de índice único -> ya existe review de este usuario en este lugar
+      return res.status(409).json({ error: 'Ya has opinado sobre este lugar' });
+    }
+
+    console.error("❌ Error al crear review:", err);
+    res.status(500).json({ error: "Error interno al crear review" });
   }
 });
+
 
 // 📌 Editar review propia
 router.patch('/reviews/:id', requireAuth, async (req, res, next) => {
