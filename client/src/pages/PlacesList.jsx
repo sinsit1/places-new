@@ -25,16 +25,16 @@ function MapUpdater({ center }) {
   return null
 }
 
-export default function PlacesList(){
-  const [data,setData] = useState([])
-  const [q,setQ] = useState('')
-  const [minRating,setMin] = useState('')
+export default function PlacesList() {
+  const [data, setData] = useState([])
+  const [q, setQ] = useState('')
+  const [minRating, setMin] = useState('')
   const [mapCenter, setMapCenter] = useState([40.4168, -3.7038]) // Madrid por defecto
   const [suggestions, setSuggestions] = useState([])
 
-  useEffect(()=>{ load() },[])
+  useEffect(() => { load() }, [])
 
-  async function load(){
+  async function load() {
     const r = await http(`/places?search=${encodeURIComponent(q)}&minRating=${minRating}`)
     setData(r.data.data || r.data)
   }
@@ -72,16 +72,15 @@ export default function PlacesList(){
 
   return (
     <div>
-      <div className="flex items-end gap-2 mb-4 relative">
+      {/* 🔹 Contenedor buscador */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-2 mb-4 relative">
         <div className="flex-1">
           <label className="label">Buscar</label>
           <input
-            className="input"
+            className="input w-full"
             placeholder="Nombre, ciudad, dirección..."
             value={q}
-            onChange={e=>{
-              setQ(e.target.value)
-            }}
+            onChange={e => setQ(e.target.value)}
           />
           {suggestions.length > 0 && (
             <ul className="absolute autocomplete-list shadow-md border rounded w-full max-h-48 overflow-y-auto bg-white z-50">
@@ -89,7 +88,7 @@ export default function PlacesList(){
                 <li
                   key={s.place_id}
                   className="p-2 hover:bg-neutral-100 cursor-pointer text-sm"
-                  onClick={()=>handleSelectSuggestion(s)}
+                  onClick={() => handleSelectSuggestion(s)}
                 >
                   {s.display_name}
                 </li>
@@ -97,27 +96,31 @@ export default function PlacesList(){
             </ul>
           )}
         </div>
-        <div>
+
+        <div className="w-full sm:w-40">
           <label className="label">Nota mínima</label>
           <input
-            className="input"
+            className="input w-full"
             placeholder="Ej. 3.5"
             value={minRating}
-            onChange={e=>setMin(e.target.value)}
+            onChange={e => setMin(e.target.value)}
           />
         </div>
-        <button className="btn btn-primary" onClick={load}>Buscar</button>
+
+        <button className="btn btn-primary w-full sm:w-auto" onClick={load}>
+          Buscar
+        </button>
       </div>
 
-      {/* Mapa */}
-      <div className="h-96 card overflow-hidden mb-6">
+      {/* 🔹 Mapa */}
+      <div className="h-64 sm:h-96 card overflow-hidden mb-6">
         <MapContainer
           center={mapCenter}
           zoom={6}
-          style={{height:"100%", width:"100%"}}
+          style={{ height: "100%", width: "100%" }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapUpdater center={mapCenter} /> {/* 👈 aquí actualizamos el mapa */}
+          <MapUpdater center={mapCenter} />
           {data.map(p => (
             p.location && p.location.coordinates ? (
               <Marker key={p._id} position={[p.location.coordinates[1], p.location.coordinates[0]]}>
@@ -138,14 +141,14 @@ export default function PlacesList(){
         </MapContainer>
       </div>
 
-      {/* Lista de lugares */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {data.map(p=>(
+      {/* 🔹 Lista de lugares */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {data.map(p => (
           <Link key={p._id} to={`/places/${p._id}`} className="card p-4 hover:shadow-md transition">
             <h3 className="font-semibold text-lg">{p.title}</h3>
             <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2">{p.description}</p>
             <div className="mt-3 text-sm">
-              ⭐ {Number(p.avgRating || 0).toFixed(1)} 
+              ⭐ {Number(p.avgRating || 0).toFixed(1)}
               <span className="text-neutral-500"> ({p.reviewsCount})</span>
             </div>
           </Link>
